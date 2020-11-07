@@ -1,22 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
 
+from app.routes import routes
+
+
 app = FastAPI()
 
-
-@app.get('/')
-async def root():
-    return {'message': 'hello from root'}
-
-
-@app.get('/train/{model_name}')
-async def train_model():
-    return {'message': 'training model'}
-
-
-@app.get('/chat/{bot_name}')
-async def start_chat(bot_name):
-    return {'message': f'starting chat with bot {bot_name}'}
+app.include_router(routes.router, prefix='/api')
 
 
 # if __name__ == "__main__":
