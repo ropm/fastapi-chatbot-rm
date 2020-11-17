@@ -7,9 +7,7 @@ from bot.net.models import NeuralNet
 from bot.utils import NaturalLangProcessor
 
 
-def start_chatting(message):
-    with open('intents.json', 'r') as f:
-        intents = json.load(f)
+def start_chatting(message, intents):
     nlp = NaturalLangProcessor()
 
     device = 'cpu'

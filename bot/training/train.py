@@ -13,9 +13,7 @@ from bot.net.models import NeuralNet
 logger = logging.getLogger(__name__)
 
 
-def start_training():
-    with open('intents.json', 'r') as f:
-        intents = json.load(f)
+def start_training(intents, epochs):
     nlp = NaturalLangProcessor()
 
     try:
@@ -27,7 +25,7 @@ def start_training():
         all_words, tags, xy = parse_intents(intents, nlp)
 
     trained_x, trained_y = train_xy(all_words, tags, xy, nlp)
-    model_data = train_main(trained_x, trained_y, tags, all_words)
+    model_data = train_main(trained_x, trained_y, tags, all_words, epochs)
     return model_data
 
 
@@ -35,7 +33,7 @@ def parse_intents(intents, nlp):
     all_words = []
     tags = []
     xy = []
-    ignore_chars = ['?', '!', '.', ',']
+    ignore_chars = ["?", "!", ".", ",", "'"]
     for intent in intents['intents']:
         tag = intent['tag']
         tags.append(tag)
@@ -68,14 +66,14 @@ def train_xy(all_words, tags, xy, nlp):
     return x_train, y_train
 
 
-def train_main(x_train, y_train, tags, all_words):
+def train_main(x_train, y_train, tags, all_words, epochs):
     batch = 8
     hidden_size = 8
     output_size = len(tags)
     # length of each bag of words/all_words (first bag of words in this case)
     input_size = len(x_train[0])
     learning_rate = 0.001
-    num_epochs = 2000
+    num_epochs = epochs
 
     data = ChatDataset(x_train, y_train)
     train_loader = DataLoader(
@@ -92,9 +90,9 @@ def train_main(x_train, y_train, tags, all_words):
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     for epoch in range(num_epochs):
-        for (ws, lbls) in train_loader:
-            words = ws.to(device)
-            labels = lbls.to(device)
+        for (words, labels) in train_loader:
+            words = words.to(device)
+            labels = labels.to(device)
 
             # predicted outputs
             outputs = model(words)
@@ -110,13 +108,26 @@ def train_main(x_train, y_train, tags, all_words):
 
     logger.warning(f'Training complete, final loss: {loss.item():.4f}')
 
+    rating = ''
+    if loss.item() > 0.005:
+        rating = 'not too great'
+    elif 0.005 > loss.item() > 0.002:
+        rating = 'ok'
+    elif 0.002 > loss.item() > 0.0002:
+        rating = 'good'
+    else:
+        rating = 'very good'
+
     data = {
+        "final_loss": loss.item(),
+        "training_rating": rating,
         "model_state": model.state_dict(),
+        "optimizer_state": optimizer.state_dict(),
         "input_size": input_size,
         "hidden_size": hidden_size,
         "output_size": output_size,
         "all_words": all_words,
-        "tags": tags
+        "tags": tags,
     }
     FILE = "data.pth"
     torch.save(data, FILE)
