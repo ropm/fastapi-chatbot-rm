@@ -1,0 +1,27 @@
+version: '3'
+services:
+    db:
+        image: postgres
+        container_name: fids_chatbot_db
+        env_file: .env.prod
+        volumes:
+            - ./postgres-data:/var/lib/postgresql/data
+    api:
+        build:
+            context: .
+            dockerfile: Dockerfile.prod
+        env_file: .env.prod
+        command: ./start-prod.sh
+        restart: always
+        volumes:
+            - .:/app
+        ports:
+            - 8000:8000
+        depends_on:
+            - db
+    web:
+        build: ./nginx
+        ports:
+            - 5000:80
+        depends_on:
+            - api
