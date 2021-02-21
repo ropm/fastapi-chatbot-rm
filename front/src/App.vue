@@ -2,7 +2,7 @@
   <div id="app">
     <img alt="Vue logo" src="./assets/logo.png">
     <HelloWorld msg="Welcome to Your Vue.js App"/>
-    <Chat v-bind:firstQuestions="firstQuestions"/>
+    <Chat />
   </div>
 </template>
 
@@ -15,20 +15,6 @@ export default {
   components: {
     HelloWorld,
     Chat
-  },  
-  data() {
-    return {
-      firstQuestions: [
-        {
-          id: 1,
-          msg: 'What we do'
-        },
-        {
-          id: 2,
-          msg: 'Tell me a joke'
-        }
-      ]
-    }
   }
 }
 </script>

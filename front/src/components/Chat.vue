@@ -1,21 +1,25 @@
 <template>
 <div>
-  <button class="open-button" v-on:click="chatHidden = !chatHidden" v-if="chatHidden">Chat</button>
+  <font-awesome-icon icon="comment-dots" class="open-button" v-on:click="chatHidden = !chatHidden" v-if="chatHidden"/>
       <div class="chat-popup" v-if="!chatHidden">
         <form @submit="sendMessage">
-            <h1>Chat with Sam the Bot</h1>
+          <div class="chat-header">
+            <h2>Chat with the Fidsbot</h2>
+            <span class="close-button"><font-awesome-icon icon="times" v-on:click="chatHidden = !chatHidden"/></span>
+            </div>
+            <div class="all-all-container">
             <div class="all-container" v-for="msg in messages" v-bind:key="msg.id">
                 <div class="sent-msg" 
                 v-bind:class="{'bot-container': msg.source === 'bot', 'you-container': msg.source === 'user'}">
                     {{msg.message}}
                 </div>
             </div>
+            </div>
             <div class="typing" v-if="thinking">Typing...</div>
 
             <textarea placeholder="Type a message" name="message" v-model="typedMessage" required></textarea>
 
             <button type="submit" class="btn">Send</button>
-            <button type="button" class="btn cancel" v-on:click="chatHidden = !chatHidden">Hide</button>
         </form>
       </div>
 </div>
@@ -27,44 +31,73 @@ import { v4 as uuid } from 'uuid';
 
 export default {
   name: 'Chat',
-  props: ['firstQuestions'],
   data () {
       return {
           chatHidden: true,
           typedMessage: '',
           thinking: false,
-          messages: []
+          messages: [{id: uuid(), source: 'bot', message: 'Hello there! What can I help you with today?'}]
       }
   },
   methods: {
-      sendMessage (e) {
+      async sendMessage (e, reSendMsg = null) {
           e.preventDefault();
-          const typedMsg = {
-              id: uuid(),
-              source: 'user',
-              message: this.typedMessage
+          if (this.typedMessage === '' && !reSendMsg) {
+            return;
           }
-          this.typedMessage = '';
-          this.messages.push(typedMsg);
-          this.thinking = true;
+          let msgToSend;
+          if (reSendMsg) {
+            msgToSend = reSendMsg;
+          } else {
+            msgToSend = {
+                id: uuid(),
+                source: 'user',
+                message: this.typedMessage
+            }
+            this.typedMessage = '';
+            this.messages.push(msgToSend);
+            this.thinking = true;
+          }
 
           const config = {
-              baseURL: 'http://localhost:8000/api'
+              baseURL: 'https://chat-lw-test.herokuapp.com/api'
           }
-          axios.get(`/chat/${typedMsg.message}`, config)
-            .then((res) => {
+          try {
+              const res = await axios.get(`/chat/${msgToSend.message}`, config);
+              if (res.status === 200) {
                 const botMsg = {
-                    id: uuid(),
-                    source: 'bot',
-                    message: res.data.bot
-                }
-                this.messages.push(botMsg);
+                      id: uuid(),
+                      source: 'bot',
+                      message: res.data.bot
+                  }
+                  this.messages.push(botMsg);
+                  this.thinking = false;
+              } else {
                 this.thinking = false;
-            })
-            .catch((err) => {
-                console.error(err);
-                this.thinking = false;
-            })
+                console.warn('Something has gone wrong with bot response!', res.status)
+              }
+          } catch(err) {
+            const trained = await this.sendTrain(config);
+            if (trained && trained.success) {
+              this.sendMessage(e, msgToSend)
+            } else {
+              this.messages.push({id: uuid(), source: 'bot', message: 'I am unfortunately down for maintenance... :-('})
+              this.thinking = false;
+            }
+          }
+      },
+      async sendTrain(conf) {
+        try {
+          const trainRes = await axios.get('/train?epochs=3000', conf);
+          if (trainRes.status === 200) {
+            return {'success': true}
+          } else {
+            return {'success': false}
+          }
+        } catch(err) {
+          this.messages.push({id: uuid(), source: 'bot', message: 'I am unfortunately down for maintenance... :-('})
+          this.thinking = false;
+        }
       }
   }
 }
@@ -74,29 +107,45 @@ export default {
 
 /* Button used to open the chat form - fixed at the bottom of the page */
 .open-button {
-  background-color: #f1f1f1;
-  color: black;
+  background-color: #b83a3a;
   padding: 16px 20px;
   border: none;
   cursor: pointer;
-  opacity: 0.8;
+  opacity: 0.9;
   position: fixed;
   bottom: 23px;
   right: 28px;
-  width: 300px;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  display: block;
 }
 
 .bot-container {
+    padding: 10px;
     text-align: left;
 }
 
 .you-container {
+    padding: 10px;
     text-align: right;
+    font-weight: bold;
 }
 
 .sent-msg {
     display: block;
     border: 3px solid #f1f1f1;
+}
+
+.chat-header {
+  display: flex;
+  direction: row;
+  justify-content: space-between;
+  margin-left: 1%;
+}
+
+.close-button {
+  cursor: pointer;
 }
 
 /* The popup chat - hidden by default */
@@ -106,9 +155,15 @@ export default {
   right: 15px;
   border: 3px solid #f1f1f1;
   z-index: 9;
-  max-width: 300px;
   padding: 10px;
   background-color: white;
+  max-width: 85vw;
+  overflow: scroll;
+}
+
+.all-all-container {
+  max-height: 50vh;
+  overflow: auto;
 }
 
 /* Full-width textarea */
@@ -119,7 +174,6 @@ export default {
   border: none;
   background: #f1f1f1;
   resize: none;
-  min-height: 60px;
 }
 
 /* When the textarea gets focus, do something */
@@ -130,7 +184,7 @@ export default {
 
 /* Set a style for the submit/login button */
 .chat-popup .btn {
-  background-color: #4CAF50;
+  background-color: #b83a3a;
   color: white;
   padding: 16px 20px;
   border: none;
@@ -138,11 +192,6 @@ export default {
   width: 100%;
   margin-bottom:10px;
   opacity: 0.8;
-}
-
-/* Add a red background color to the cancel button */
-.chat-popup .cancel {
-  background-color: red;
 }
 
 /* Add some hover effects to buttons */
